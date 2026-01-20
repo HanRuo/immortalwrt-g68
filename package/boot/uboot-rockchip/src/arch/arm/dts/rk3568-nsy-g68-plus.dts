@@ -8,12 +8,7 @@
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/pinctrl/rockchip.h>
 #include <dt-bindings/soc/rockchip,vop2.h>
-// 新增引用缺失的三个dtsi文件（按依赖顺序）
 #include "rk3568.dtsi"
-#include "rk3568-ramoops.dtsi"
-#include "rk3568-vngpu.dtsi"
-#include "rk3568-vngpu-rk809.dtsi"
-
 
 / {
 	model = "NSY-G68 AX3000 Router";
@@ -27,16 +22,15 @@
 
 	chosen: chosen {
 		stdout-path = "serial2:1500000n8";
-		/* 新增硬解相关启动参数，优化内存分配 */
-		bootargs = "earlycon=uart8250,mmio32,0xfe660000 console=ttyS2,1500000n8 root=/dev/mmcblk1p4 rw rootwait init=/init ignore_loglevel video=HDMI-A-1:1920x1080@60 drm.vblankoffdelay=1 rk3568.vpu_mem=0x40000000";
 	};
 
 	fiq-debugger {
 		compatible = "rockchip,fiq-debugger";
 		rockchip,serial-id = <2>;
 		rockchip,wake-irq = <0>;
+		/* If enable uart uses irq instead of fiq */
 		rockchip,irq-mode-enable = <1>;
-		rockchip,baudrate = <1500000>;
+		rockchip,baudrate = <1500000>;  /* Only 115200 and 1500000 */
 		interrupts = <GIC_SPI 252 IRQ_TYPE_LEVEL_LOW>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&uart2m0_xfer>;
@@ -129,6 +123,7 @@
 		regulator-state-mem {
 			regulator-off-in-suspend;
 		};
+
 	};
 
 	vcc3v3_lcd1_n: vcc3v3-lcd1-n {
@@ -142,6 +137,7 @@
 		regulator-state-mem {
 			regulator-off-in-suspend;
 		};
+
 	};
 
 	sdio_pwrseq: sdio-pwrseq {
@@ -295,79 +291,10 @@
 			pinctrl-0 = <&led_power_en>;
 		};
 	};
-
-	/* ========== 新增硬解核心配置 - VPU内存域 ========== */
-	reserved-memory {
-		#address-cells = <2>;
-		#size-cells = <2>;
-		ranges;
-
-		/* VPU硬解专用内存（64MB），避免内存竞争 */
-		vpu_mem: vpu-memory@50000000 {
-			reg = <0x0 0x50000000 0x0 0x4000000>;
-			no-map;
-			compatible = "rockchip,vpu-mem";
-		};
-
-		/* VEPU视频编码专用内存（32MB） */
-		vepu_mem: vepu-memory@54000000 {
-			reg = <0x0 0x54000000 0x0 0x2000000>;
-			no-map;
-			compatible = "rockchip,vepu-mem";
-		};
-
-		/* RGA图形加速专用内存（32MB） */
-		rga_mem: rga-memory@56000000 {
-			reg = <0x0 0x56000000 0x0 0x2000000>;
-			no-map;
-			compatible = "rockchip,rga-mem";
-		};
-	};
-
-	/* ========== 新增HDMI显示适配（硬解输出） ========== */
-	hdmi: hdmi@fe060000 {
-		compatible = "rockchip,rk3568-hdmi", "rockchip,rk3399-hdmi";
-		reg = <0x0 0xfe060000 0x0 0x20000>;
-		interrupts = <GIC_SPI 111 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&cru PCLK_HDMI_CTRL>, <&cru DCLK_HDMI_PHY>,
-			 <&cru SCLK_HDMI_CEC>, <&cru SCLK_HDMI_AUDIO>,
-			 <&cru SCLK_HDMI_PCLK>, <&cru SCLK_HDMI_BCLK>,
-			 <&cru SCLK_HDMI_MCLK>;
-		clock-names = "hclk", "dclk_phy", "cec", "audio",
-			      "pclk", "bclk", "mclk";
-		assigned-clocks = <&cru DCLK_HDMI_PHY>;
-		assigned-clock-parents = <&cru DCLK_HDMI_PHY_SRC>;
-		assigned-clock-rates = <297000000>;
-		phys = <&combphy0 PHY_TYPE_HDMI>;
-		phy-names = "hdmi-phy";
-		pinctrl-names = "default";
-		pinctrl-0 = <&hdmi_cec>;
-		avdd-0v9-supply = <&vdda0v9_image>;
-		avdd-1v8-supply = <&vcca1v8_image>;
-		vcc-3v3-supply = <&vcc3v3_sys>;
-		status = "okay";
-	};
-
-	/* ========== 新增音频Codec适配（硬解音频输出） ========== */
-	sound {
-		compatible = "simple-audio-card";
-		simple-audio-card,name = "NSY-G68-HDMI-AUDIO";
-		simple-audio-card,format = "i2s";
-		simple-audio-card,mclk-fs = <256>;
-		simple-audio-card,widgets = "Headphone", "HDMI Audio";
-		simple-audio-card,routing = "HDMI Audio", "HP_OUT";
-
-		simple-audio-card,cpu {
-			sound-dai = <&i2s2>;
-		};
-
-		simple-audio-card,codec {
-			sound-dai = <&hdmi>;
-		};
-	};
 };
 
 &i2c0 {
+
 	status = "okay";
 
 	rk809: pmic@20 {
@@ -426,6 +353,7 @@
 		};
 
 		regulators {
+
 			vdd_logic: DCDC_REG1 {
 				regulator-always-on;
 				regulator-boot-on;
@@ -435,6 +363,7 @@
 				regulator-ramp-delay = <6001>;
 				regulator-initial-mode = <2>;
 				regulator-name = "vdd_logic";
+
 				regulator-state-mem {
 					regulator-off-in-suspend;
 				};
@@ -449,6 +378,7 @@
 				regulator-ramp-delay = <6001>;
 				regulator-initial-mode = <2>;
 				regulator-name = "vdd_gpu";
+
 				regulator-state-mem {
 					regulator-off-in-suspend;
 				};
@@ -459,6 +389,7 @@
 				regulator-boot-on;
 				regulator-initial-mode = <2>;
 				regulator-name = "vcc_ddr";
+
 				regulator-state-mem {
 					regulator-on-in-suspend;
 				};
@@ -473,6 +404,7 @@
 				regulator-ramp-delay = <6001>;
 				regulator-initial-mode = <2>;
 				regulator-name = "vdd_npu";
+
 				regulator-state-mem {
 					regulator-off-in-suspend;
 				};
@@ -484,6 +416,7 @@
 				regulator-min-microvolt = <900000>;
 				regulator-max-microvolt = <900000>;
 				regulator-name = "vdda0v9_image";
+
 				regulator-state-mem {
 					regulator-off-in-suspend;
 				};
@@ -495,6 +428,7 @@
 				regulator-min-microvolt = <900000>;
 				regulator-max-microvolt = <900000>;
 				regulator-name = "vdda_0v9";
+
 				regulator-state-mem {
 					regulator-off-in-suspend;
 				};
@@ -506,6 +440,7 @@
 				regulator-min-microvolt = <900000>;
 				regulator-max-microvolt = <900000>;
 				regulator-name = "vdda0v9_pmu";
+
 				regulator-state-mem {
 					regulator-on-in-suspend;
 					regulator-suspend-microvolt = <900000>;
@@ -518,6 +453,7 @@
 				regulator-min-microvolt = <3000000>;
 				regulator-max-microvolt = <3000000>;
 				regulator-name = "vccio_acodec";
+
 				regulator-state-mem {
 					regulator-off-in-suspend;
 				};
@@ -529,6 +465,7 @@
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <3300000>;
 				regulator-name = "vccio_sd";
+
 				regulator-state-mem {
 					regulator-off-in-suspend;
 				};
@@ -540,6 +477,7 @@
 				regulator-min-microvolt = <3300000>;
 				regulator-max-microvolt = <3300000>;
 				regulator-name = "vcc3v3_pmu";
+
 				regulator-state-mem {
 					regulator-on-in-suspend;
 					regulator-suspend-microvolt = <3300000>;
@@ -552,6 +490,7 @@
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <1800000>;
 				regulator-name = "vcca_1v8";
+
 				regulator-state-mem {
 					regulator-off-in-suspend;
 				};
@@ -563,6 +502,7 @@
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <1800000>;
 				regulator-name = "vcca1v8_pmu";
+
 				regulator-state-mem {
 					regulator-on-in-suspend;
 					regulator-suspend-microvolt = <1800000>;
@@ -575,6 +515,7 @@
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <1800000>;
 				regulator-name = "vcca1v8_image";
+
 				regulator-state-mem {
 					regulator-off-in-suspend;
 				};
@@ -586,6 +527,7 @@
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <1800000>;
 				regulator-name = "vcc_1v8";
+
 				regulator-state-mem {
 					regulator-off-in-suspend;
 				};
@@ -595,6 +537,7 @@
 				regulator-always-on;
 				regulator-boot-on;
 				regulator-name = "vcc_3v3";
+
 				regulator-state-mem {
 					regulator-off-in-suspend;
 				};
@@ -604,6 +547,7 @@
 				regulator-always-on;
 				regulator-boot-on;
 				regulator-name = "vcc3v3_sd";
+
 				regulator-state-mem {
 					regulator-off-in-suspend;
 				};
@@ -648,6 +592,7 @@
 	};
 
 	pmic {
+	
 		pmic_int: pmic-intl {
 			rockchip,pins = <0 RK_PA3 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
@@ -691,23 +636,6 @@
 			rockchip,pins = <0 RK_PC4 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
-
-	/* ========== 新增硬解相关引脚 - HDMI CEC ========== */
-	hdmi {
-		hdmi_cec: hdmi-cec {
-			rockchip,pins = <2 RK_PA3 RK_FUNC_GPIO &pcfg_pull_none>;
-		};
-	};
-
-	/* ========== 新增I2S音频引脚（硬解音频输出） ========== */
-	i2s2 {
-		i2s2_m0_xfer: i2s2-m0-xfer {
-			rockchip,pins = <1 RK_PA4 RK_FUNC_1 &pcfg_pull_none>,
-				       <1 RK_PA5 RK_FUNC_1 &pcfg_pull_none>,
-				       <1 RK_PA6 RK_FUNC_1 &pcfg_pull_none>,
-				       <1 RK_PA7 RK_FUNC_1 &pcfg_pull_none>;
-		};
-	};
 };
 
 &cpu0 {
@@ -739,36 +667,45 @@
 &pcie30_phy_grf {
 };
 
+// 注意两条 pcie reset gpio 均与 NSY不同
+// fe270000
+// 这里需要更换uboot版本,因为只有支持的pcie拆分的才能启动这个
+// 不然开启就挂死,更换版本:https://github.com/Kwiboo/u-boot-rockchip
+// https://lists.denx.de/pipermail/u-boot/2023-August/525793.html
+// 这个pcie,可能需要打补丁,使用radxa 版本
 &pcie3x1 {
-	vpcie3v3-supply = <&vcc3v3_pcie>;
-	reset-gpios = <&gpio0 RK_PC3 GPIO_ACTIVE_HIGH>;
-	num-lanes = <0x1>;
-	pinctrl-0 = <&pcie30x1_reset_h>;
-	status = "okay";
+		vpcie3v3-supply = <&vcc3v3_pcie>;
+		reset-gpios = <&gpio0 RK_PC3 GPIO_ACTIVE_HIGH>;
+		num-lanes = <0x1>; /*可能不生效,但是拆分需要打补丁,如果是吧,打补丁*/
+		pinctrl-0 = <&pcie30x1_reset_h>;
+		status = "okay";
 };
 
+//fe280000
 &pcie3x2 {
-	vpcie3v3-supply = <&vcc3v3_pcie>;
-	reset-gpios = <&gpio0 RK_PC6 GPIO_ACTIVE_HIGH>;
-	status = "okay";
-	num-lanes = <0x1>;
-	pinctrl-0 = <&pcie30x2_reset_h>;
+		vpcie3v3-supply = <&vcc3v3_pcie>;
+		reset-gpios = <&gpio0 RK_PC6 GPIO_ACTIVE_HIGH>;
+		status = "okay";
+		num-lanes = <0x1>;
+		pinctrl-0 = <&pcie30x2_reset_h>;
 };
 
 &pcie30phy {
-	data-lanes = <1 2>;
-	status = "okay";
+		data-lanes = <1 2>; //配置lan的通道树
+		status = "okay";
 };
 
-&combphy2 {
-	status = "okay";
+//使能pcie 2.0x1 phy
+&combphy2 { //combphy2 kernel name
+		status = "okay";
 };
 
 &pcie2x1 {
-	reset-gpios = <&gpio3 RK_PC1 GPIO_ACTIVE_HIGH>;
-	pinctrl-0 = <&pcie2x1_reset_h>;
-	rockchip,perst-inactive-ms = <500>;
-	status = "okay";
+		reset-gpios = <&gpio3 RK_PC1 GPIO_ACTIVE_HIGH>;
+		pinctrl-0 = <&pcie2x1_reset_h>;
+		//for kernel.dts
+		rockchip,perst-inactive-ms = <500>;
+		status = "okay";
 };
 
 &mdio0 {
@@ -800,21 +737,28 @@
 	status = "okay";
 };
 
+// form lintel,使能
 &combphy1 {
 	rockchip,sgmii-mac-sel = <1>;
 	status = "okay";
 };
 
+// form lintel,使能,sgmii 千兆.
 &gmac1 {
 	status = "disabled";
 	phy-mode = "sgmii";
 	rockchip,pipegrf = <&pipegrf>;
+	//不用reset
+	//snps,reset-gpio = <&gpio2 RK_PC2 GPIO_ACTIVE_LOW>;
+	//snps,reset-active-low;
+	//snps,reset-delays-us = <0 20000 100000>;
 	assigned-clocks = <&cru SCLK_GMAC1_RX_TX>;
 	assigned-clock-parents = <&gmac1_xpcsclk>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&gmac1m1_miim>;
 	power-domains = <&power RK3568_PD_PIPE>;
 	phys = <&combphy1 PHY_TYPE_SGMII>;
+
 	fixed-link {
 		speed = <1000>;
 		full-duplex;
@@ -841,9 +785,10 @@
 };
 
 &usb_host0_xhci {
-	dr_mode = "host";
+	dr_mode = "host";//自动检测
+	//extcon = <&combphy0>;
 	status = "okay";
-	extcon = <&usb2phy0>;
+	extcon = <&usb2phy0>; //超过rxda测试
 	snps,dis_enblslpm_quirk;
 	snps,dis-u1-entry-quirk;
 	snps,dis-u2-entry-quirk;
@@ -865,7 +810,7 @@
 };
 
 &usb_host1_xhci {
-	dr_mode = "host";
+	dr_mode = "host";//自动检测
 	snps,dis_enblslpm_quirk;
 	snps,dis-u2-freeclk-exists-quirk;
 	snps,dis-del-phy-power-chg-quirk;
@@ -917,6 +862,7 @@
 	vccio5-supply = <&vcc_3v3>;
 	vccio6-supply = <&vcc_3v3>;
 	vccio7-supply = <&vcc_3v3>;
+	status = "okay";
 };
 
 &pwm0 {
@@ -944,59 +890,23 @@
 	status = "okay";
 };
 
-/* ========== 增强VPU配置 - 启用全格式硬解 ========== */
 &vpu {
 	status = "okay";
-	memory-region = <&vpu_mem>;  /* 绑定专用内存 */
-	rockchip,vpu-codec = "h264, h265, vp8, vp9, av1, mpeg2, mpeg4";  /* 全格式支持 */
-	rockchip,vpu-hw-level = <5>; /* 最高硬解级别 */
-	rockchip,vpu-mem-bank = <1>;
 };
 
-/* ========== 增强VEPU配置 - 视频编码硬解 ========== */
-&vepu {
-	status = "okay";
-	memory-region = <&vepu_mem>;  /* 绑定专用内存 */
-	rockchip,vepu-codec = "h264, h265";  /* 编码支持 */
-	rockchip,vepu-hw-level = <4>;
-};
-
-/* ========== 增强RGA配置 - 图形加速（辅助硬解） ========== */
 &rga {
 	status = "okay";
-	memory-region = <&rga_mem>;  /* 绑定专用内存 */
-	rockchip,rga-hw-version = <2>;
-	rockchip,rga-support-scale = <1>;
-	rockchip,rga-support-rotate = <1>;
-	rockchip,rga-support-blend = <1>;
 };
 
-/* ========== 增强VOP配置 - 显示输出（硬解画面渲染） ========== */
+&vepu {
+	status = "okay";
+};
+
 &vop {
 	status = "okay";
-	rockchip,vop2-enable = <1>;  /* 启用VOP2新一代渲染 */
-	rockchip,vop-max-layer = <4>;
-	rockchip,vop-support-hdr = <1>;  /* 支持HDR */
 };
 
-/* ========== 新增I2S2配置 - 硬解音频输出 ========== */
-&i2s2 {
-	status = "okay";
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2s2_m0_xfer>;
-	rockchip,playback-channels = <2>;
-	rockchip,capture-channels = <0>;
-	rockchip,rate = <48000>;
-	rockchip,bitwidth = <16>;
-	rockchip,format = <1>; /* I2S_FORMAT */
-};
-
-/* ========== 新增COMBPHY0配置 - HDMI PHY（硬解视频输出） ========== */
-&combphy0 {
-	status = "okay";
-	rockchip,phy-type = <PHY_TYPE_HDMI>;
-};
-
+//sdhci@fe310000
 &sdhci {
 	max-frequency = <200000000>;
 	bus-width = <8>;
@@ -1010,6 +920,7 @@
 	status = "okay";
 };
 
+//dwmmc@fe000000
 &sdmmc2 {
 	max-frequency = <150000000>;
 	fifo-depth = <256>;
@@ -1028,6 +939,7 @@
 	status = "disabled";
 };
 
+//dwmmc@fe2b0000
 &sdmmc0 {
 	max-frequency = <150000000>;
 	fifo-depth = <256>;
@@ -1044,12 +956,17 @@
 	status = "disabled";
 };
 
+&combphy0 {
+	status = "okay";
+};
+
 &csi_dphy {
 	status = "okay";
 };
 
 &sfc {
 	status = "okay";
+
 	flash@0 {
 		compatible = "spi-nor";
 		reg = <0>;
@@ -1059,6 +976,8 @@
 	};
 };
 
+
+//i2c@fe5a0000
 &i2c1 {
 	status = "disabled";
 };
@@ -1099,6 +1018,7 @@
 	status = "disabled";
 };
 
+//fe720000
 &saradc {
 	status = "okay";
 	vref-supply = <&vcc1v8_adc>;
