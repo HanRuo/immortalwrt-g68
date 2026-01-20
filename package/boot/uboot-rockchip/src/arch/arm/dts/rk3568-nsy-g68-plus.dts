@@ -9,10 +9,11 @@
 #include <dt-bindings/pinctrl/rockchip.h>
 #include <dt-bindings/soc/rockchip,vop2.h>
 // 新增引用缺失的三个dtsi文件（按依赖顺序）
+#include "rk3568.dtsi"
 #include "rk3568-ramoops.dtsi"
 #include "rk3568-vngpu.dtsi"
 #include "rk3568-vngpu-rk809.dtsi"
-#include "rk3568.dtsi"
+
 
 / {
 	model = "NSY-G68 AX3000 Router";
